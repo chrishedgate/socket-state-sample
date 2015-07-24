@@ -1,0 +1,105 @@
+<html>
+
+<head>
+	<title>socket-auth-sample</title>
+
+	<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+		$(document).ready(function() {
+			var _token = null;
+			var url = location.protocol.concat("//").concat(window.location.host);
+
+			$('#clear').click(function() {
+				_token = null;
+				$('#token').text('');
+			});
+
+			$('#connect').click(function() {
+				var socket = io.connect(url, {'force new connection': true});
+
+				socket.on('error', function(err) {
+					console.log('error: '+JSON.stringify(err));
+				});
+
+				socket.on('connect', function() {
+					$('#status').text('Connected');
+
+					$('#connect').attr('disabled', 'disabled');
+					$('#disconnect').removeAttr('disabled');
+					$('#ping').removeAttr('disabled');
+					$('#login').removeAttr('disabled');
+
+					if (_token) {
+						socket.emit('authenticate', {token: _token});
+					}
+				});
+
+				socket.on('disconnect', function() {
+					$('#status').text('Disconnected');
+
+					$('#connect').removeAttr('disabled');
+					$('#disconnect').attr('disabled', 'disabled');
+					$('#ping').attr('disabled', 'disabled');
+					$('#login').attr('disabled', 'disabled');
+				});
+
+				socket.on('authenticated', function(data) {
+					_token = data.token;
+					$('#token').text(new Date() +': ' + _token);
+					$('#status').text('Authenticated');
+					$('#login').attr('disabled', 'disabled');
+				});
+
+				socket.on('unauthorized', function(data) {
+					console.log(data.error);
+					_token = null;
+					$('#token').text('');
+					$('#login').removeAttr('disabled');
+				});
+
+				socket.on('pong', function() {
+					console.log('Received pong!');
+				});
+
+				$('#disconnect').click(function() {
+					if (socket.connected) {
+						socket.disconnect();
+					}
+				});
+
+				$('#ping').click(function() {
+					socket.emit('ping');
+				});
+
+				$('#login').click(function() {
+					socket.emit('login', {username: 'someone'});
+				});
+			});
+
+		});
+	</script>
+</head>
+
+<body>
+	<h2>socket-auth-sample</h2>
+	<p>
+		<strong>Status:</strong>
+		<span id="status">Disconnected</span>
+	</p>
+	<p>
+		Token:
+		<span id="token"></span>
+	</p>
+	<p>
+		<button id="connect">Connect</button>
+		<button id="disconnect" disabled>Disconnect</button>
+	</p>
+	<p>
+		<button id="ping" disabled>Send ping</button>
+		<button id="login" disabled>Login</button>
+		<button id="clear">Clear token</button>
+	</p>
+</body>
+
+</html>
